@@ -396,25 +396,6 @@
       border-left: 4px solid #f87171;
     }
 
-    /* Debug styles */
-    .debug-info {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 10px;
-      border-radius: 5px;
-      font-family: monospace;
-      font-size: 12px;
-      z-index: 1001;
-      display: none;
-    }
-
-    .debug-info.show {
-      display: block;
-    }
-
     /* Responsive Design */
     @media (max-width: 768px) {
       .container {
@@ -558,10 +539,10 @@
       <form id="uploadForm" class="upload-form">
         <!-- BULLETPROOF FILE INPUT SOLUTION -->
         <div class="file-input-container">
-          <input type="file" id="fileInput" class="hidden-file-input" accept="image/*" required />
+          <input type="file" id="fileInput" class="hidden-file-input" accept="image/*" multiple required />
           <button type="button" id="fileSelectButton" class="file-select-button">
             <span class="icon">🎯</span>
-            <span id="buttonText">Choose Your Perfect Shot</span>
+            <span id="buttonText">Choose Your Perfect Shots</span>
           </button>
         </div>
         <button type="submit" id="uploadButton" class="upload-button">
@@ -597,15 +578,12 @@
   <!-- Notification Container -->
   <div id="notification" class="notification"></div>
 
-  <!-- Debug Info -->
-  <div id="debugInfo" class="debug-info"></div>
-
   <script>
-    // BULLETPROOF JAVASCRIPT SOLUTION
-    console.log('🚀 Initializing Premium Photo Gallery...');
+    // ENHANCED JAVASCRIPT WITH MULTIPLE FILE SUPPORT
+    console.log('🚀 Initializing Premium Photo Gallery with Multiple Upload...');
 
     // Global variables
-    let selectedFile = null;
+    let selectedFiles = [];
     let imageCount = 0;
     let totalSize = 0;
 
@@ -619,50 +597,34 @@
     const uploadText = document.getElementById('uploadText');
     const imageCountEl = document.getElementById('imageCount');
     const totalSizeEl = document.getElementById('totalSize');
-    const debugInfo = document.getElementById('debugInfo');
-
-    // Debug function
-    function debug(message) {
-      console.log('🔧 DEBUG:', message);
-      if (debugInfo) {
-        debugInfo.innerHTML += message + '<br>';
-        debugInfo.classList.add('show');
-      }
-    }
 
     // CRITICAL: Multiple methods to ensure file dialog opens
     function openFileDialog() {
-      debug('Attempting to open file dialog...');
-      
       try {
         // Method 1: Direct click
         fileInput.click();
-        debug('✅ Method 1: Direct click attempted');
         
         // Method 2: Programmatic trigger (fallback)
         setTimeout(() => {
-          if (!selectedFile) {
+          if (selectedFiles.length === 0) {
             const event = new MouseEvent('click', {
               view: window,
               bubbles: true,
               cancelable: true
             });
             fileInput.dispatchEvent(event);
-            debug('✅ Method 2: Event dispatch attempted');
           }
         }, 100);
         
         // Method 3: Focus and trigger (another fallback)
         setTimeout(() => {
-          if (!selectedFile) {
+          if (selectedFiles.length === 0) {
             fileInput.focus();
             fileInput.click();
-            debug('✅ Method 3: Focus + click attempted');
           }
         }, 200);
         
       } catch (error) {
-        debug('❌ Error opening file dialog: ' + error.message);
         showNotification('Error opening file dialog. Please try again.', 'error');
       }
     }
@@ -694,24 +656,63 @@
       totalSizeEl.textContent = formatFileSize(totalSize);
     }
 
+    // Update button text for multiple files
+    function updateButtonText() {
+      if (selectedFiles.length === 0) {
+        buttonText.textContent = 'Choose Your Perfect Shot';
+        fileSelectButton.classList.remove('file-selected');
+        uploadButton.disabled = true;
+      } else if (selectedFiles.length === 1) {
+        buttonText.textContent = selectedFiles[0].name;
+        fileSelectButton.classList.add('file-selected');
+        uploadButton.disabled = false;
+      } else {
+        buttonText.textContent = `${selectedFiles.length} images selected`;
+        fileSelectButton.classList.add('file-selected');
+        uploadButton.disabled = false;
+      }
+    }
+
+    // Validate files
+    function validateFiles(files) {
+      const validFiles = [];
+      const errors = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Check file type
+        if (!file.type.startsWith('image/')) {
+          errors.push(`${file.name} is not an image file`);
+          continue;
+        }
+        
+        // Check file size (10MB limit)
+        if (file.size > 10 * 1024 * 1024) {
+          errors.push(`${file.name} is too large (max 10MB)`);
+          continue;
+        }
+        
+        validFiles.push(file);
+      }
+      
+      return { validFiles, errors };
+    }
+
     // BULLETPROOF EVENT LISTENERS
     function setupEventListeners() {
-      debug('Setting up event listeners...');
-
       // File select button click - MULTIPLE METHODS
       if (fileSelectButton) {
         // Method 1: Click event
         fileSelectButton.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          debug('File select button clicked');
           openFileDialog();
         });
 
         // Method 2: Touch events for mobile
         fileSelectButton.addEventListener('touchend', (e) => {
           e.preventDefault();
-          debug('File select button touched');
           openFileDialog();
         });
 
@@ -719,63 +720,63 @@
         fileSelectButton.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            debug('File select button keyboard activated');
             openFileDialog();
           }
         });
-
-        debug('✅ File select button events attached');
-      } else {
-        debug('❌ File select button not found');
       }
 
-      // File input change event
+      // File input change event - ENHANCED FOR MULTIPLE FILES
       if (fileInput) {
         fileInput.addEventListener('change', (e) => {
-          const file = e.target.files[0];
-          debug(`File input changed: ${file ? file.name : 'No file'}`);
+          const files = Array.from(e.target.files);
           
-          if (file) {
-            selectedFile = file;
-            buttonText.textContent = file.name;
-            fileSelectButton.classList.add('file-selected');
-            showNotification(`Selected: ${file.name}`, 'success');
-            debug(`✅ File selected: ${file.name} (${formatFileSize(file.size)})`);
+          if (files.length === 0) {
+            selectedFiles = [];
+            updateButtonText();
+            return;
+          }
+          
+          const { validFiles, errors } = validateFiles(files);
+          
+          if (errors.length > 0) {
+            showNotification(`Some files were skipped: ${errors.join(', ')}`, 'error');
+          }
+          
+          if (validFiles.length > 0) {
+            selectedFiles = validFiles;
+            updateButtonText();
+            
+            const totalSizeSelected = validFiles.reduce((sum, file) => sum + file.size, 0);
+            showNotification(
+              `Selected ${validFiles.length} image${validFiles.length > 1 ? 's' : ''} (${formatFileSize(totalSizeSelected)})`, 
+              'success'
+            );
           } else {
-            selectedFile = null;
-            buttonText.textContent = 'Choose Your Perfect Shot';
-            fileSelectButton.classList.remove('file-selected');
+            selectedFiles = [];
+            updateButtonText();
           }
         });
-
-        debug('✅ File input change event attached');
-      } else {
-        debug('❌ File input not found');
       }
 
-      // Form submission
+      // Form submission - ENHANCED FOR MULTIPLE FILES
       if (form) {
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
-          debug('Form submitted');
           
-          if (!selectedFile) {
-            showNotification('Please select a file first', 'error');
-            debug('❌ No file selected');
+          if (selectedFiles.length === 0) {
+            showNotification('Please select at least one file', 'error');
             return;
           }
 
-          await uploadFile(selectedFile);
+          await uploadMultipleFiles(selectedFiles);
         });
-
-        debug('✅ Form submit event attached');
       }
 
-      // Drag and drop
+      // Drag and drop - ENHANCED FOR MULTIPLE FILES
       setupDragAndDrop();
     }
 
-    // Enhanced drag and drop
+    // Enhanced drag and drop for multiple files
     function setupDragAndDrop() {
       const uploadSection = document.querySelector('.upload-section');
       
@@ -792,74 +793,97 @@
       }
 
       uploadSection.addEventListener('drop', (e) => {
-        const files = e.dataTransfer.files;
+        const files = Array.from(e.dataTransfer.files);
+        
         if (files.length > 0) {
-          const file = files[0];
-          if (file.type.startsWith('image/')) {
-            selectedFile = file;
-            buttonText.textContent = file.name;
-            fileSelectButton.classList.add('file-selected');
-            showNotification(`Dropped: ${file.name}`, 'success');
-            debug(`✅ File dropped: ${file.name}`);
-          } else {
-            showNotification('Please drop an image file', 'error');
+          const { validFiles, errors } = validateFiles(files);
+          
+          if (errors.length > 0) {
+            showNotification(`Some files were skipped: ${errors.join(', ')}`, 'error');
+          }
+          
+          if (validFiles.length > 0) {
+            selectedFiles = validFiles;
+            updateButtonText();
+            
+            const totalSizeSelected = validFiles.reduce((sum, file) => sum + file.size, 0);
+            showNotification(
+              `Dropped ${validFiles.length} image${validFiles.length > 1 ? 's' : ''} (${formatFileSize(totalSizeSelected)})`, 
+              'success'
+            );
           }
         }
       });
-
-      debug('✅ Drag and drop events attached');
     }
 
-    // Upload file function
-    async function uploadFile(file) {
-      debug(`Starting upload: ${file.name}`);
+    // Upload multiple files function
+    async function uploadMultipleFiles(files) {
+      console.log(`Starting upload of ${files.length} files`);
       
-      // Validation
-      if (!file.type.startsWith('image/')) {
-        showNotification('Please select a valid image file', 'error');
-        return;
-      }
-
-      if (file.size > 10 * 1024 * 1024) {
-        showNotification('File size must be less than 10MB', 'error');
-        return;
-      }
-
       // Set loading state
       uploadButton.disabled = true;
-      uploadText.textContent = 'Uploading...';
+      uploadText.textContent = `Uploading ${files.length} files...`;
+      
+      let successCount = 0;
+      let errorCount = 0;
+      const errors = [];
 
       try {
-        const formData = new FormData();
-        formData.append('image', file);
-
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          showNotification(`${file.name} uploaded successfully!`, 'success');
-          debug(`✅ Upload successful: ${file.name}`);
+        // Upload files one by one with progress updates
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          uploadText.textContent = `Uploading ${i + 1}/${files.length}: ${file.name}`;
           
-          // Reset form
-          selectedFile = null;
-          fileInput.value = '';
-          buttonText.textContent = 'Choose Your Perfect Shot';
-          fileSelectButton.classList.remove('file-selected');
+          try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const response = await fetch('/api/upload', {
+              method: 'POST',
+              body: formData
+            });
+
+            if (response.ok) {
+              successCount++;
+              console.log(`✅ Uploaded: ${file.name}`);
+            } else {
+              const error = await response.json();
+              errorCount++;
+              errors.push(`${file.name}: ${error.message || 'Upload failed'}`);
+              console.log(`❌ Failed: ${file.name}`);
+            }
+          } catch (error) {
+            errorCount++;
+            errors.push(`${file.name}: Network error`);
+            console.error(`Network error uploading ${file.name}:`, error);
+          }
           
-          // Reload gallery
-          loadGallery();
-        } else {
-          const error = await response.json();
-          showNotification(error.message || 'Upload failed', 'error');
-          debug(`❌ Upload failed: ${error.message}`);
+          // Small delay between uploads to prevent overwhelming the server
+          if (i < files.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
         }
+        
+        // Show final results
+        if (successCount > 0 && errorCount === 0) {
+          showNotification(`Successfully uploaded all ${successCount} images!`, 'success');
+        } else if (successCount > 0 && errorCount > 0) {
+          showNotification(`Uploaded ${successCount} images, ${errorCount} failed`, 'error');
+        } else {
+          showNotification(`All uploads failed: ${errors.join(', ')}`, 'error');
+        }
+        
+        // Reset form if any uploads succeeded
+        if (successCount > 0) {
+          selectedFiles = [];
+          fileInput.value = '';
+          updateButtonText();
+          loadGallery();
+        }
+        
       } catch (error) {
-        console.error('Upload error:', error);
-        showNotification('Network error. Please try again.', 'error');
-        debug(`❌ Network error: ${error.message}`);
+        console.error('Upload process error:', error);
+        showNotification('Upload process failed. Please try again.', 'error');
       } finally {
         // Reset loading state
         uploadButton.disabled = false;
@@ -867,7 +891,7 @@
       }
     }
 
-    // Load gallery function
+    // Load gallery function (unchanged)
     async function loadGallery() {
       try {
         const response = await fetch('/api/images');
@@ -918,12 +942,9 @@
           gallery.appendChild(imageCard);
         });
 
-        debug(`✅ Gallery loaded: ${files.length} images`);
-
       } catch (error) {
         console.error('Gallery loading error:', error);
         showNotification('Failed to load gallery', 'error');
-        debug(`❌ Gallery load error: ${error.message}`);
       }
     }
 
@@ -940,35 +961,22 @@
       }
       
       if (issues.length > 0) {
-        debug(`⚠️ Compatibility issues: ${issues.join(', ')}`);
         showNotification('Some features may not work in this browser', 'error');
-      } else {
-        debug('✅ Browser compatibility check passed');
       }
     }
 
     // Initialize everything
     function initialize() {
-      debug('🚀 Initializing application...');
-      
       try {
         checkCompatibility();
         setupEventListeners();
         loadGallery();
+        updateButtonText(); // Initialize button state
         
-        debug('✅ Application initialized successfully');
-        console.log('✅ Premium Photo Gallery ready!');
-        
-        // Hide debug info after 5 seconds
-        setTimeout(() => {
-          if (debugInfo) {
-            debugInfo.classList.remove('show');
-          }
-        }, 5000);
+        console.log('✅ Premium Photo Gallery with Multiple Upload ready!');
         
       } catch (error) {
         console.error('Initialization error:', error);
-        debug(`❌ Initialization error: ${error.message}`);
         showNotification('Failed to initialize gallery', 'error');
       }
     }
@@ -983,17 +991,9 @@
     // Global error handler
     window.addEventListener('error', (e) => {
       console.error('Global error:', e.error);
-      debug(`❌ Global error: ${e.error.message}`);
     });
 
-    // Make debug function globally available
-    window.showDebug = () => {
-      if (debugInfo) {
-        debugInfo.classList.add('show');
-      }
-    };
-
-    console.log('📝 To show debug info, run: showDebug()');
+    console.log('📝 Multiple image upload enabled!');
   </script>
 </body>
 </html>
